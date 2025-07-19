@@ -36,39 +36,47 @@ func Disk() DiskInfo {
 
 // isPhysicalDisk 判断分区是否为物理磁盘
 func isPhysicalDisk(part disk.PartitionStat) bool {
-	// 对于LXC等基于loop的根文件系统，始终包含根挂载点
-	if part.Mountpoint == "/" {
-		return true
-	}
-	mountpoint := strings.ToLower(part.Mountpoint)
-	// 临时文件系统
-	if mountpoint == "/tmp" || mountpoint == "/var/tmp" || mountpoint == "/dev/shm" ||
-		mountpoint == "/run" || mountpoint == "/run/lock" {
-		return false
-	}
+    mountpoint := strings.ToLower(part.Mountpoint)
+    fstype := strings.ToLower(part.Fstype)
 
-	fstype := strings.ToLower(part.Fstype)
-	// 网络驱动器
-	if strings.HasPrefix(fstype, "nfs") || strings.HasPrefix(fstype, "cifs") ||
-		strings.HasPrefix(fstype, "smb") || fstype == "vboxsf" || fstype == "9p" ||
-		strings.Contains(fstype, "fuse") {
-		return false
-	} // Windows 网络驱动器通常是映射盘符，但不容易通过fstype判断
-	// 可以通过opts判断，Windows网络驱动通常有相关选项
-	optsStr := strings.ToLower(strings.Join(part.Opts, ","))
-	if strings.Contains(optsStr, "remote") || strings.Contains(optsStr, "network") {
-		return false
-	}
+    // 强制包含根分区
+    if mountpoint == "/" {
+        return true
+    }
 
-	// Docker overlay
-	if fstype == "overlay" {
-		return false
-	}
+    // 排除临时文件系统
+    if mountpoint == "/tmp" || mountpoint == "/var/tmp" || mountpoint == "/dev/shm" ||
+        mountpoint == "/run" || mountpoint == "/run/lock" {
+        return false
+    }
 
-	// 虚拟内存
-	if strings.HasPrefix(part.Device, "/dev/loop") || fstype == "devtmpfs" || fstype == "tmpfs" {
-		return false
-	}
+    // 排除 Docker 和 k3s 挂载点
+    if strings.Contains(mountpoint, "/run/k3s") || strings.Contains(mountpoint, "/var/lib/docker") {
+        return false
+    }
 
-	return true
+    // 排除网络文件系统
+    if strings.HasPrefix(fstype, "nfs") || strings.HasPrefix(fstype, "cifs") ||
+        strings.HasPrefix(fstype, "smb") || fstype == "vboxsf" || fstype == "9p" ||
+        strings.Contains(fstype, "fuse") {
+        return false
+    }
+
+    // 排除 overlay 文件系统
+    if fstype == "overlay" {
+        return false
+    }
+
+    // 排除虚拟内存和 loop 设备
+    if strings.HasPrefix(part.Device, "/dev/loop") || fstype == "devtmpfs" || fstype == "tmpfs" {
+        return false
+    }
+
+    // 排除网络相关选项
+    optsStr := strings.ToLower(strings.Join(part.Opts, ","))
+    if strings.Contains(optsStr, "remote") || strings.Contains(optsStr, "network") {
+        return false
+    }
+
+    return true
 }
