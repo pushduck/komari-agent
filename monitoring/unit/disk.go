@@ -40,9 +40,9 @@ func isPhysicalDisk(part disk.PartitionStat) bool {
     fstype := strings.ToLower(part.Fstype)
 
     // 强制包含根分区
-    if mountpoint == "/" {
-        return true
-    }
+    // if mountpoint == "/" {
+    //     return true
+    // }
 
     // 排除临时文件系统
     if mountpoint == "/tmp" || mountpoint == "/var/tmp" || mountpoint == "/dev/shm" ||
